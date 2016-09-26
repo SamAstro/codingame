@@ -19,6 +19,8 @@ isHeroInDanger = False
 isUpClose = False
 isFirstTurn = True
 
+# Reproducing randomness -- FOR DEBUG ONLY
+random.seed(9001)
 
 ##### FUNCTIONS #####
 def distance(hero, cx, cy):
@@ -32,69 +34,30 @@ def find_random_crate(crates, crates_bombs):
 
     if len(crates) == 0:
         isCrateFound = True
-    
-    while not isCrateFound:
-        # Choose randomly a crate to bomb
-        crate = crates[random.choice(list(crates.keys()))]
-        isCrateBomb = False
-        for k, crate_bomb in crates_bombs.items():
-            if crate.x == crate_bomb[0] and crate.y == crate_bomb[1]:
-                    isCrateBomb = True
-                    break
-                    
-        if isCrateBomb:
-            continue
-        else:
-            isCrateFound = True
-            posx = crate.x
-            posy = crate.y
+        posx = random.randint(0,13)
+        posy = random.randint(0,11)
+    elif len(crates) == 1:
+        isCrateFound = True
+        posx = crates[0].x
+        posy = crates[0].y
+    else:
+        while not isCrateFound:
+            # Choose randomly a crate to bomb
+            crate = crates[random.choice(list(crates.keys()))]
+            isCrateBomb = False
+            for k, crate_bomb in crates_bombs.items():
+                if crate.x == crate_bomb[0] and crate.y == crate_bomb[1]:
+                        isCrateBomb = True
+                        break
+                        
+            if isCrateBomb:
+                continue
+            else:
+                isCrateFound = True
+                posx = crate.x
+                posy = crate.y
                 
     return posx, posy
-
-def find_farest_crate(hero, crates, crates_bombs):
-    posx, posy = 0, 0
-    mdist = 0
-    for k, crate in crates.items():
-        # Is the crate already have a bomb next to it?
-        isCrateBomb = False
-        for kk, crate_bomb in crates_bombs.items():
-            if crate.x == crate_bomb[0] and crate.y == crate_bomb[1]:
-                isCrateBomb = True
-                break
-
-        if isCrateBomb:
-            continue
-        else:
-            dx, dy = distance(hero, crate.x, crate.y)
-            dist = math.sqrt(dx**2 + dy**2)
-            if dist > mdist:
-                posx = crate.x
-                posy = crate.y
-                mdist = dist
-    return posx, posy
-
-def find_closest_crate(hero, crates, crates_bombs):
-    posx, posy = 0, 0
-    mdist = 1.e5
-    for k, crate in crates.items():
-        # Is the crate already have a bomb next to it?
-        isCrateBomb = False
-        for kk, crate_bomb in crates_bombs.items():
-            if crate.x == crate_bomb[0] and crate.y == crate_bomb[1]:
-                isCrateBomb = True
-                break
-
-        if isCrateBomb:
-            continue
-        else:
-            dx, dy = distance(hero, crate.x, crate.y)
-            dist = math.sqrt(dx**2 + dy**2)
-            if dist < mdist:
-                posx = crate.x
-                posy = crate.y
-                mdist = dist
-    return posx, posy
-
 
 def find_ups_onboard(hero, obj_ups):
     dmin = 10
@@ -111,22 +74,35 @@ def find_ups_onboard(hero, obj_ups):
             isUpClose = True
     return isUpClose, posx, posy
 
+def find_bot_onboard(hero, bots):
+    posx, posy = 0,0
+    isBotNear = False
+    for k, bot in bots.items():
+        dx = hero.x - bot.x
+        dy = hero.y - bot.y
+        if (math.fabs(dx) < hero.bomb_reach and dy == 0) or (math.fabs(dy) < hero.bomb_reach and dx == 0):
+            isBotNear = True
+            posx = bot.x
+            posy = bot.y
+    return isBotNear, posx, posy
 
-def find_bombs_onboard(hero, enemy_bombs):
-    ebomb_range = None
+
+def find_bombs_onboard(hero, bombs):
+    bomb_range = None
     posx, posy = 0,0
     isHeroInDanger = False
-    for k,bomb in enemy_bombs.items():
-        ebomb_range = bomb.param_2 - 1
-        ebomb_timer = bomb.param_1
-        ebomb_constraint = 2 #max(ebomb_range, ebomb_timer)
+    for k,bomb in bombs.items():
+        bomb_range = bomb.param_2 - 1
+        bomb_timer = bomb.param_1
+        bomb_constraint = 2 #max(bomb_range, ebomb_timer)
         dx = hero.x - bomb.x
         dy = hero.y - bomb.y
-        if (math.fabs(dx) < ebomb_constraint and dy == 0) or (math.fabs(dy) < ebomb_constraint and dx == 0):
+        if (dy == 0 or dx == 0) or (dy == 1 or dx == 1):
+        #if (math.fabs(dx) < ebomb_constraint and dy == 0) or (math.fabs(dy) < ebomb_constraint and dx == 0):
             isHeroInDanger = True
             posx = bomb.x
             posy = bomb.y
-    return isHeroInDanger, posx, posy, ebomb_range
+    return isHeroInDanger, posx, posy, bomb_range
 
 
 
@@ -186,20 +162,13 @@ class Hero(Entity):
         return isHeroNextCrate, posx_crate, posy_crate
 
     # Methods related to Bombs
-    def bomb_under(self, enemy_bombs, hero_bombs):
+    def bomb_under(self, bombs):
         isBombUnderHero = False
         
-        for k, ebomb in enemy_bombs.items():
-            if (hero.x == ebomb.x and hero.y == ebomb.y):
+        for k, bomb in bombs.items():
+            if (hero.x == bomb.x and hero.y == bomb.y):
                 isBombUnderHero = True
                 break
-
-        if not isBombUnderHero:
-            for k, hbomb in hero_bombs.items():
-                if (hero.x == hbomb.x and hero.y == hbomb.y):
-                    isBombUnderHero = True
-                    break
-
         return isBombUnderHero
 
     # Methods related to Ups
@@ -217,91 +186,37 @@ class Hero(Entity):
 
         dx = self.x - posx_bomb
         dy = self.y - posy_bomb
-        
-        deltax = -deplx if self.x -deplx > 0 else deplx
-        deltay = -deply if self.y -deply > 0 else deply
 
-        if math.fabs(dx)<ebomb_reach:
-            posx = self.x
-            if grid[self.x, self.y + deltay] != '.':
+        if dx == 0:
+            # Hero and bot bomb on same column.
+            # Need to move Hero to next column
+            posx = self.x + 1 if self.x + 1 < width - 1 else self.x - 1
+            if dy > 0:
+                posy = self.y + 1 if self.y + 1 < height-1 else self.y - 1
+            else:
+                posy = self.y - 1 if self.y - 1 > 0 else self.y + 1
+
+            # Is not square available?
+            if grid[posy, posx] != '.':
+                posy = self.y + 2 if self.y + 2 < height - 1 else self.y - 2
+
+        elif dy == 0:
+            if dx > 0:
                 posx = self.x + 1 if self.x + 1 < width - 1 else self.x - 1
-            posy = self.y + deply 
+            else:
+                posx = self.x - 1 if self.x - 1 > 0 else self.x + 1
 
-        if math.fabs(dy) < ebomb_reach:
+            posy = self.y + 1 if self.y + 1 < height-1 else self.y - 1
+            if grid[posy, posx] != '.':
+                posx = self.x + 2 if self.x + 2 < width - 1 else self.x - 2
+        else:
+            print("already in safe place, do not move", file=sys.stderr)
+            posx = self.x
             posy = self.y
-            if grid[self.x+deltax, self.y] != '.':
-                posy = self.y + 1 if self.y + 1 < height - 1 else self.y - 1
-            posx = self.x + deplx
-            isNotMoved = False
+
         print("MOVE", posx, posy, sep=" ")
 
 
-
-    # Method to update HERO actions
-    def update(self, crates, walls):
-        isUPDATE = False
-        # Getting sense of direction
-        change_x = self.x - self.past_x
-        change_y = self.y - self.past_y
-
-        print("changes:", change_x, change_y, self.past_x, self.past_y, self.x, self.y, sep=" ", file=sys.stderr)
-
-        # Is HERO near a Wall or crate
-        hero_wall_keys = []
-        for k, wall in walls.items():
-            if math.fabs(self.x - wall.x) == 1 or math.fabs(self.y - wall.y) == 1 :
-                hero_wall_keys.append(k)
-        hero_crate_keys = []
-        for k, crate in crates.items():
-            if math.fabs(self.x - crate.x) == 1 or math.fabs(self.y - crate.y) == 1 :
-                hero_crate_keys.append(k)
-
-
-        walls_list = [walls[x] for x in hero_wall_keys]
-        crates_list = [crates[x] for x in hero_crate_keys]
-
-        # Did we collide with a wall on our way to somewhere?
-        for wall in walls_list:
-            if math.fabs(wall.x - self.x) == 1 and change_x != 0:
-                if change_y > 0:
-                    newy = self.y+1 if self.y+1 < height-1 else self.y-1
-                else:
-                    newy = self.y-1 if self.y-1 > 0 else self.y+1
-                isUPDATE = True
-                print("MOVE", self.x, newy, sep=" ")
-                break
-
-            if math.fabs(wall.y - self.y) == 1 and change_y != 0:
-                if change_x > 0:
-                    newx = self.x+1 if self.x+1 < width-1 else self.x-1
-                else:
-                    newx = self.x-1 if self.x-1 > 0 else self.x+1
-                isUPDATE = True
-                print("MOVE", newx, self.y, sep=" ")
-                break
-
-        # Did we collide with a crate on our way to somewhere?
-        for crate in crates_list:
-            if math.fabs(crate.x - crate.x) == 1 and change_x != 0:
-                if change_y > 0:
-                    newy = self.y+1 if self.y+1 < height-1 else self.y-1
-                else:
-                    newy = self.y-1 if self.y-1 > 0 else self.y+1
-                isUPDATE = True
-                print("MOVE", self.x, newy, sep=" ")
-                break
-
-            if math.fabs(crate.y - crate.x) == 1 and change_y != 0:
-                if change_x > 0:
-                    newx = self.x+1 if self.x+1 < width-1 else self.x-1
-                else:
-                    newx = self.x-1 if self.x-1 > 0 else self.x+1
-                isUPDATE = True
-                print("MOVE", newx, self.y, sep=" ")
-                break
-
-        return isUPDATE
-            
 
 # Creating wall class
 class Wall():
@@ -360,141 +275,107 @@ while True:
     isHeroOnABomb = False
 
     # Dictionaries saving each entity types
-    hero_bombs = {}
-    enemy_bombs = {}
+    bombs = {}
+    bots = {}
     obj_ups = {}
-    nb_hero_bombs = 0
-    nebombs = 0
+    nb_bombs = 0
     nups = 0
+    nbots = 0
     # Entities
     entities = int(input())
     for i in range(entities):
         entity_type, owner, x, y, param_1, param_2 = [int(j) for j in input().split()]
         # Populating each entity dictionaries
-        if entity_type == 0 and owner == my_id:
-            if isFirstTurn:
-                hero.x = x
-                hero.y = y
-                isFirstTurn = False
+        if entity_type == 0:
+            if owner == my_id:
+                if isFirstTurn:
+                    hero.x = x
+                    hero.y = y
+                    isFirstTurn = False
+                else:
+                    hero.past_x = hero.x
+                    hero.past_y = hero.y
+                    hero.x = x
+                    hero.y = y
+                hero.param_1 = param_1
+                hero.param_2 = param_2
             else:
-                hero.past_x = hero.x
-                hero.past_y = hero.y
-                hero.x = x
-                hero.y = y
-            hero.param_1 = param_1
-            hero.param_2 = param_2
+                bots[nbots] = Entity(entity_type, owner, x, y, param_1, param_2)
+                nbots += 1
+
         if entity_type == 2:
             obj_ups[nups] = Entity(entity_type, owner, x, y, param_1, param_2)
             nups += 1
         if entity_type == 1:
+            bombs[nb_bombs] = Entity(entity_type, owner, x, y, param_1, param_2)
+            nb_bombs += 1
+            if hero.x == x and hero.y == y):
+                isHeroOnABomb = True
             if owner == my_id:
-                hero_bombs[nb_hero_bombs] = Entity(entity_type, owner, x, y, param_1, param_2)
-                nb_hero_bombs += 1
                 hero.bomb_reach = param_2-1
-                if (hero.x == x and hero.y == y):
-                    isHeroOnABomb = True
-            else:
-                enemy_bombs[nebombs] = Entity(entity_type, owner, x, y, param_1, param_2)
-                nebombs += 1
             
     # Populating the crates with near bomb dictionary
     crates_bombs = {}
     nb_crate_bomb = 0
     for k, crate in crates_dict.items():
-        for k, bomb in hero_bombs.items():
+        for k, bomb in bombs.items():
             if math.fabs(bomb.x-crate.x) == 1 or math.fabs(bomb.y-crate.y) == 1:
                 crates_bombs[nb_crate_bomb] = [crate.x, crate.y]
 
     '''
     ##### HERO Actions #####
-        1- Is HERO threaten by enemy bombs?
-        2- Is there close UPs to get?
-        3- Move to close crate and bomb [repeat as many time as bomb available]
+        -- is HERO threaten by bombs?
+            yes -- go to safe place
+            no -- HERO attacks: does HERO has bomb left?
+                yes -- is there VILLAIN closeby?
+                    yes -- BOMB VILLAIN
+                    no -- is there CRATE nearby?
+                        yes -- is there wall between HERO and CRATE?
+                            yes -- [repeat - is there CRATE nearby]
+                            no -- BOMB CRATE
+                        no -- is there UPs nearby?
+                            yes -- MOVE UP
+                            no -- MOVE RANDOM CRATE
+                no -- go to safe place or RANDOM CRATE
     '''
-    # Is HERO next to a crate and have a bomb?
-    if hero.param_1 != 0 and not hero.bomb_previous_turn and not isHeroOnABomb:
-        isHeroNextCrate, posx_crate, posy_crate = hero.next_to_a_crate(crates_dict, crates_bombs)
-        if isHeroNextCrate:
-            hero.bomb_crate(posx_crate, posy_crate)
-            print("HERO NEXT BOMB", file=sys.stderr)
-            continue
-    
-    hero.bomb_previous_turn = False
 
-    # Is HERO threaten by enemy bombs?
-    if len(enemy_bombs) != 0:
-        isHeroInDanger, posx_bomb, posy_bomb, ebomb_range = find_bombs_onboard(hero, enemy_bombs)
+    if len(bombs) != 0:
+        print("Bombs are on board", file=sys.stderr)
+        isHeroInDanger, posx_bomb, posy_bomb, ebomb_range = find_bombs_onboard(hero, bombs)
     if isHeroInDanger:
+        # HERO plays defence
         hero.move_away_from_bombs(posx_bomb, posy_bomb, grid, ebomb_range)
         print("HERO DANGER", file=sys.stderr)
-        continue
-
-    # Is there close Ups to get?
-    if len(obj_ups) != 0:
-        isUpClose, posx_up, posy_up = find_ups_onboard(hero, obj_ups)
-    if isUpClose:
-        hero.move_to_ups(posx_up, posy_up)
-        isUpClose = False
-        print("HERO UP", file=sys.stderr)
-        continue
-
-    # No danger from close bombs and no close UPs to get, let's bomb some
-    # crates!
-    if len(crates_dict) == 0:
-        print("No more crates", file=sys.stderr)
-        print("MOVE 0 0")
-    elif len(crates_dict) == 1:
-        print("One crate left", file=sys.stderr)
-        print("MOVE", int(width/2), int(height/2), sep=" ", file=sys.stderr)
     else:
-        posx_crate, posy_crate = find_random_crate(crates_dict, crates_bombs)
-        print("closest crate:", posx_crate, posy_crate, sep=" ", file=sys.stderr)
         if hero.param_1 != 0:
-            deltax = posx_crate - hero.x
-            deltay = posy_crate - hero.y
-            print("deltas:", deltax, deltay, hero.bomb_reach, sep=" ", file=sys.stderr)
-            if ((math.fabs(deltax) < hero.bomb_reach and deltay == 0) or (math.fabs(deltay) < hero.bomb_reach and deltax == 0)):
-                # is there a wall between HERO and crate?
-                isWallOnTheWay = False
-                if deltax == 0:
-                    start = hero.y if deltay < 0 else posy_crate
-                    end = posy_crate if deltay < 0 else hero.y
-                    if any(g == 'X' for g in grid[hero.x,start:end]):
-                        isWallOnTheWay = True
-                        print("Wall is on the way!! on y-axis", file=sys.stderr)
-                    else:
-                        isWallOnTheWay = False
-
-                if deltay == 0:
-                    start = hero.x if deltax < 0 else posx_crate
-                    end = posx_crate if deltax < 0 else hero.x
-                    if any(g != '.' or g !='X' for g in grid[start:end,hero.y]):
-                        isWallOnTheWay = True
-                        print("Wall is on the way!! on x-axis", file=sys.stderr)
-                    else:
-                        isWallOnTheWay = False
-
-                if isWallOnTheWay:
-                    posx_crate, posy_crate = find_random_crate(crates_dict, crates_bombs)
-                    hero.move_to_crate(posx_crate, posy_crate)
-                    print("HERO WALL BOMB", file=sys.stderr)
-                else:
-                    isBombUnderHero = False
-                    isBombUnderHero = hero.bomb_under(enemy_bombs, hero_bombs)
-                    if isBombUnderHero:
-                        posx_crate, posy_crate = find_random_crate(crates_dict, crates_bombs)
-                        print(posx_crate, posy_crate, sep=" ", file=sys.stderr)
-                        hero.move_to_crate(posx_crate, posy_crate)
-                        print("HERO MOVE", file=sys.stderr)
-                    else:
-                        hero.bomb_crate(posx_crate, posy_crate)
-                        print("HERO BOMB", file=sys.stderr)
+            # HERO plays attack
+            isBotNear, posx_bot, posy_bot = find_bot_onboard(hero,bots)
+            if isBotNear:
+                print("BOMB", posx_bot, posy_bot, sep=" ")
             else:
-                hero.move_to_crate(posx_crate, posy_crate)
-                print("HERO MOVE BOMB", file=sys.stderr)
-
+                if len(crates_dict) == 0:
+                    print("No more crates", file=sys.stderr)
+                    print("MOVE", hero.x, hero.y, sep=" ", file=sys.stderr)
+                else:
+                    # HERO close to crate?
+                    print(hero.bomb_previous_turn, isHeroOnABomb, sep=" ", file=sys.stderr)
+                    isHeroNextCrate = False
+                    if not hero.bomb_previous_turn and not isHeroOnABomb:
+                        isHeroNextCrate, posx_crate, posy_crate = hero.next_to_a_crate(crates_dict, crates_bombs)
+                    if isHeroNextCrate:
+                        hero.bomb_crate(posx_crate, posy_crate)
+                        hero.bomb_previous_turn = False
+                    else:
+                        if len(obj_ups) != 0:
+                            isUpClose, posx_up, posy_up = find_ups_onboard(hero, obj_ups)
+                        if isUpClose:
+                            hero.move_to_ups(posx_up, posy_up)
+                            isUpClose = False
+                        else:
+                            posx_crate, posy_crate = find_random_crate(crates_dict, crates_bombs)
+                            hero.move_to_crate(posx_crate, posy_crate)
         else:
             posx_crate, posy_crate = find_random_crate(crates_dict, crates_bombs)
-            print(posx_crate, posy_crate, sep=" ", file=sys.stderr)
             hero.move_to_crate(posx_crate, posy_crate)
-            print("HERO MOVE", file=sys.stderr)
+
+
