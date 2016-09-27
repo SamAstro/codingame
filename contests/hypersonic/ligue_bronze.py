@@ -1,5 +1,17 @@
 #!/opt/local/bin/python
 """
+DESCRIPTION OF THE SCRIPT
+
+Version:
+Created:
+Compiler: python
+
+Author: Dr. Samia Drappeau (SD), samia.drappeau@irap.omp.eu
+Affiliation: IRAP/UPS, Toulouse, France
+Notes: 
+"""
+#!/opt/local/bin/python
+"""
 BOT FOR THE 'LIGUE BOIS 1' OF THE 'HYPERSONIC' CONTEST
 
 Version:    1.1
@@ -314,115 +326,5 @@ while True:
         entity_type, owner, x, y, param_1, param_2 = [int(j) for j in input().split()]
         # Populating each entity dictionaries
         print("entities split", entity_type, owner, x, y, param_1, param_2, sep=" ", file=sys.stderr)
-
-        if entity_type == 0:
-            if owner == my_id:
-                if isFirstTurn:
-                    hero.x = x
-                    hero.y = y
-                    isFirstTurn = False
-                else:
-                    hero.past_x = hero.x
-                    hero.past_y = hero.y
-                    hero.x = x
-                    hero.y = y
-                hero.param_1 = param_1
-                hero.param_2 = param_2
-            else:
-                bots[nbots] = Entity(entity_type, owner, x, y, param_1, param_2)
-                nbots += 1
-
-        print("entities bot or hero", file=sys.stderr)
-
-        if entity_type == 2:
-            obj_ups[nups] = Entity(entity_type, owner, x, y, param_1, param_2)
-            nups += 1
-
-        print("entities up", file=sys.stderr)
-
-        if entity_type == 1:
-            all_bombs[nb_bombs] = Entity(entity_type, owner, x, y, param_1, param_2)
-            nb_bombs += 1
-            print("bomb added", file=sys.stderr)
-            if hero.x == x and hero.y == y:
-                isHeroOnABomb = True
-                print("hero on bomb", file=sys.stderr)
-            if owner == my_id:
-                hero.bomb_reach = param_2-1
-                print("reach bomb", file=sys.stderr)
-            
-    print('Entities done...', file=sys.stderr)
-
-    # Populating the crates with near bomb dictionary
-    crates_bombs = {}
-    nb_crate_bomb = 0
-    for k, crate in crates_dict.items():
-        for k, bomb in all_bombs.items():
-            if math.fabs(bomb.x-crate.x) == 1 or math.fabs(bomb.y-crate.y) == 1:
-                crates_bombs[nb_crate_bomb] = [crate.x, crate.y]
-
-    print('crates and crates bomb done...', file=sys.stderr)
-
-    '''
-    ##### HERO Actions #####
-        -- is HERO threaten by bombs?
-            yes -- go to safe place
-            no -- HERO attacks: does HERO has bomb left?
-                yes -- is there VILLAIN closeby?
-                    yes -- BOMB VILLAIN
-                    no -- is there CRATE nearby?
-                        yes -- is there wall between HERO and CRATE?
-                            yes -- [repeat - is there CRATE nearby]
-                            no -- BOMB CRATE
-                        no -- is there UPs nearby?
-                            yes -- MOVE UP
-                            no -- MOVE RANDOM CRATE
-                no -- go to safe place or RANDOM CRATE
-    '''
-    print("Starting Turn Action...", file=sys.stderr)
-    if isFirstBomb:
-        print("Putting first Bomb", file=sys.stderr)
-        posx_crate, posy_crate = find_crate(crates_dict, crates_bombs, random=False)
-        hero.bomb_crate(posx_crate, posy_crate)
-        isFirstBomb = False
-    else:
-        if len(all_bombs) != 0:
-            print("Bombs are on board", file=sys.stderr)
-            isHeroInDanger, posx_bomb, posy_bomb, ebomb_range = find_bombs_onboard(hero, bombs)
-        if isHeroInDanger:
-            # HERO plays defence
-            hero.move_away_from_bombs(posx_bomb, posy_bomb, grid, ebomb_range)
-            print("HERO DANGER", file=sys.stderr)
-        else:
-            if hero.param_1 != 0:
-                # HERO plays attack
-                isBotNear, posx_bot, posy_bot = find_bot_onboard(hero,bots)
-                if isBotNear:
-                    print("BOMB", posx_bot, posy_bot, sep=" ")
-                else:
-                    if len(crates_dict) == 0:
-                        print("No more crates", file=sys.stderr)
-                        print("MOVE", hero.x, hero.y, sep=" ", file=sys.stderr)
-                    else:
-                        # HERO close to crate?
-                        print(hero.bomb_previous_turn, isHeroOnABomb, sep=" ", file=sys.stderr)
-                        isHeroNextCrate = False
-                        if not hero.bomb_previous_turn and not isHeroOnABomb:
-                            isHeroNextCrate, posx_crate, posy_crate = hero.next_to_a_crate(crates_dict, crates_bombs)
-                        if isHeroNextCrate:
-                            hero.bomb_crate(posx_crate, posy_crate)
-                            hero.bomb_previous_turn = False
-                        else:
-                            if len(obj_ups) != 0:
-                                isUpClose, posx_up, posy_up = find_ups_onboard(hero, obj_ups)
-                            if isUpClose:
-                                hero.move_to_ups(posx_up, posy_up)
-                                isUpClose = False
-                            else:
-                                posx_crate, posy_crate = find_crate(crates_dict, crates_bombs, random=False)
-                                hero.move_to_crate(posx_crate, posy_crate)
-            else:
-                posx_crate, posy_crate = find_crate(crates_dict, crates_bombs)
-                hero.move_to_crate(posx_crate, posy_crate)
-
-
+        # There is a bug somewhere in my previous ligue bois 1 program... This seems to work!
+    print("MOVE 0 0")
