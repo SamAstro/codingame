@@ -18,12 +18,22 @@ import numpy
 from heapq import *
 
 
+# Manhattan distance: http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html#S7
+#function heuristic(node) =
+#    dx = abs(node.x - goal.x)
+#    dy = abs(node.y - goal.y)
+#    return D * (dx + dy)
+
+
+
 def heuristic(a, b):
-    return (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2
+    return math.fabs(a[0] - b[0]) + math.fabs(a[1] - b[1])
+    #return (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2
 
 def astar(array, start, goal):
 
-    neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
+    neighbors = [(0,1),(0,-1),(1,0),(-1,0)]
+    #neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
 
     close_set = set()
     came_from = {}
@@ -84,7 +94,7 @@ def distance(hero, cx, cy):
     dy = cy - hero.y
     dist = math.fabs(dx) + math.fabs(dy)
 
-    return dist, dx, dy
+    return dist
 
 
 
@@ -118,13 +128,13 @@ class MasterGrid():
                         end =  j+bomb.param_2 if  j+bomb.param_2 < width else width
                         for jj in range(start, end):
                             delta = math.fabs(j-jj)
-                            self.safety_map[i,jj] = 9 - delta
+                            self.safety_map[i,jj] = 9 - delta if delta != 9 else 1
                         # Setting column to danger
                         start = i-bomb.param_2 if  i-bomb.param_2 > 0 else 0
                         end =  i+bomb.param_2 if  i+bomb.param_2 < height else height
                         for ii in range(start, end):
                             delta = math.fabs(i-ii)
-                            self.safety_map[ii,j] = 9 - delta
+                            self.safety_map[ii,j] = 9 - delta if delta != 9 else 1
         for i in range(self.height):
             for j in range(self.width):
                 # Setting back walls and crates to -1
@@ -135,22 +145,22 @@ class MasterGrid():
         simulated_safety_map = np.copy(self.safety_map)
          # Setting row to danger
         start = bx-bomb_reach if  bx-bomb_reach > 0 else 0
-        end =  bx+bomb_reach if  bx+bomb_reach < width else width
+        end =  bx+bomb_reach+1 if  bx+bomb_reach+1 < width else width-1
         for j in range(start, end):
             delta = math.fabs(bx-j)
-            simulated_safety_map[by,j] = 9 - delta
+            simulated_safety_map[by,j] = 9 - delta if delta != 9 else 1
         # Setting column to danger
         start = by-bomb_reach if  by-bomb_reach > 0 else 0
-        end =  by+bomb_reach if  by+bomb_reach < height else height
+        end =  by+bomb_reach+1 if  by+bomb_reach+1 < height else height-1
         for i in range(start, end):
             delta = math.fabs(by-i)
-            simulated_safety_map[i,bx] = 9 - delta
+            simulated_safety_map[i,bx] = 9 - delta if delta != 9 else 1
 
         for i in range(self.height):
             for j in range(self.width):
                 # Setting back walls and crates to -1
                 if self.grid[i,j] != ".":
-                    self.safety_map[i,j] = -1
+                    simulated_safety_map[i,j] = -1
 
         return simulated_safety_map
         
@@ -206,7 +216,8 @@ class Hero(Entity):
     
         for k, crate in master_grid.crates.items():
             # Is there a crate next to HERO?
-            if (math.fabs(self.x - crate.x) <= self.bomb_reach and self.y == crate.y) or (math.fabs(self.y - crate.y) <= self.bomb_reach and hero.x == crate.x):
+            if (math.fabs(self.x - crate.x) <= 1 and self.y == crate.y) or (math.fabs(self.y - crate.y) <= 1 and hero.x == crate.x):
+            #if (math.fabs(self.x - crate.x) <= self.bomb_reach and self.y == crate.y) or (math.fabs(self.y - crate.y) <= self.bomb_reach and hero.x == crate.x):
                 isHeroNextCrate = True
                 break
         return isHeroNextCrate
@@ -218,85 +229,56 @@ class Hero(Entity):
         min_dc = 5
         hasFoundSafeCrate = False
         hasFoundSafeUp = False
+        safety_nb_saved = 0
+
         if len(master_grid.ups) != 0:
             for k, up in master_grid.ups.items():
-                dist, dx, dy = distance(self, up.x, up.y)
-
-                # Arriving TILEs:
-                north = (up.y-1 if up.y-1 > 0 else 0, up.x)
-                south = (up.y+1 if up.y+1 < master_grid.height else 0, master_grid.height)
-                east = (up.y,up.x+1 if up.x+1 < master_grid.width else master_grid.width)
-                west = (up.y,up.x-1 if up.x-1 > 0 else 0)
-
-                north_path = astar(master.safety_map, (self.y, self.x), north)
-                south_path = astar(master.safety_map, (self.y, self.x), south)
-                east_path =  astar(master.safety_map, (self.y, self.x), east)
-                west_path = astar(master.safety_map, (self.y, self.x), west)
+                dist = distance(self, up.x, up.y)
 
                 if dist < min_du:
-                    #XXX premier if non needed
-                    if north_path or south_path  or  east_path or  west_path != False:
-                        if north_path:
-                            ux = north[1]
-                            uy = north[0]
-                            min_du = dist
-                            hasFoundSafeUp = True
-                        if south_path:
-                            ux = south[1]
-                            uy = south[0]
-                            min_du = dist
-                            hasFoundSafeUp = True
-                        if east_path:
-                            ux = east[1]
-                            uy = east[0]
-                            min_du = dist
-                            hasFoundSafeUp = True
-                        if west_path:
-                            ux = west[1]
-                            uy = west[0]
-                            min_du = dist
-                            hasFoundSafeUp = True
+                    # Setting ARRIVAL TILE safety to 0
+                    safety_nb_saved = master.safety_map[up.y, up.x]
+                    master.safety_map[up.y, up.x] = 0
+
+                    safe_path = astar(master.safety_map, (self.y, self.x), (up.y, up.x))
+
+                    if safe_path != False:
+                        self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
+                        ux = up.x
+                        uy = up.y
+                        min_du = dist
+                        hasFoundSafeUp = True
                     else:
                         continue
+
+                    # Putting value back
+                    master.safety_map[up.y, up.x] = safety_nb_saved
+
+
         if len(master_grid.crates) != 0:
             for k, crate in master_grid.crates.items():
-                dist,dx, dy = distance(self, crate.x, crate.y)
-
-                # Arriving TILEs:
-                north = (crate.y-1 if crate.y-1 > 0 else 0, crate.x)
-                south = (crate.y+1 if crate.y+1 < master_grid.height else 0, master_grid.height)
-                east = (crate.y,crate.x+1 if crate.x+1 < master_grid.width else master_grid.width)
-                west = (crate.y,crate.x-1 if crate.x-1 > 0 else 0)
-
-                north_path = astar(master.safety_map, (self.y, self.x), north)
-                south_path = astar(master.safety_map, (self.y, self.x), south)
-                east_path =  astar(master.safety_map, (self.y, self.x), east)
-                west_path = astar(master.safety_map, (self.y, self.x), west)
+                dist = distance(self, crate.x, crate.y)
 
                 if dist < min_dc:
-                    if north_path or south_path  or  east_path or  west_path != False:
-                        if north_path:
-                            cx = north[1]
-                            cy = north[0]
-                            min_dc = dist
-                            hasFoundSafeCrate = True
-                        if south_path:
-                            cx = south[1]
-                            cy = south[0]
-                            min_dc = dist
-                            hasFoundSafeCrate = True
-                        if east_path:
-                            cx = east[1]
-                            cy = east[0]
-                            min_dc = dist
-                            hasFoundSafeCrate = True
-                        if west_path:
-                            cx = west[1]
-                            cy = west[0]
-                            min_dc = dist
-                            hasFoundSafeCrate = True
+                    # Setting ARRIVAL TILE safety to 0
+                    safety_nb_saved = master.safety_map[crate.y, crate.x]
+                    master.safety_map[crate.y, crate.x] = 0
+
+                    safe_path = astar(master.safety_map, (self.y, self.x), (crate.y, crate.x))
+
+                    if safe_path != False:
+                        self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
+                        cx = crate.x
+                        cy = crate.y
+                        min_dc = dist
+                        hasFoundSafeCrate = True
+
                     else:
                         continue
+
+                    # Putting value back
+                    master.safety_map[crate.y, crate.x] = safety_nb_saved
+
 
         if hasFoundSafeUp and hasFoundSafeCrate:
             if min_dc < min_du:
@@ -320,50 +302,36 @@ class Hero(Entity):
         bx, by = None, None
         min_db = 1e5
         hasFoundSafeBot = False
-        for k, bot in master_grid.bots.items():
-            dist,dx, dy = distance(self, bot.x, bot.y)
-
-            # Arriving TILEs:
-            north = (bot.y-1 if bot.y-1 > 0 else 0, bot.x)
-            south = (bot.y+1 if bot.y+1 < master_grid.height else 0, master_grid.height)
-            east = (bot.y,bot.x+1 if bot.x+1 < master_grid.width else master_grid.width)
-            west = (bot.y,bot.x-1 if bot.x-1 > 0 else 0)
-
-            north_path = astar(master.safety_map, (self.y, self.x), north)
-            south_path = astar(master.safety_map, (self.y, self.x), south)
-            east_path =  astar(master.safety_map, (self.y, self.x), east)
-            west_path = astar(master.safety_map, (self.y, self.x), west)
-
-            if dist < min_db:
-                if north_path or south_path  or  east_path or  west_path != False:
-                    if north_path:
-                        bx = north[1]
-                        by = north[0]
-                        min_db = dist
-                        hasFoundSafeUp = True
-                    if south_path:
-                        bx = south[1]
-                        by = south[0]
-                        min_db = dist
-                        hasFoundSafeUp = True
-                    if east_path:
-                        bx = east[1]
-                        by = east[0]
-                        min_db = dist
-                        hasFoundSafeUp = True
-                    if west_path:
-                        bx = west[1]
-                        by = west[0]
-                        min_db = dist
-                        hasFoundSafeUp = True
-                else:
-                    continue
-
-        if hasFoundSafeBot:
-            self.DEST = [bx, by]
-            return True
-        else:
+        if self.x == bx and self.y == by:
             return False
+        else:
+            for k, bot in master_grid.bots.items():
+                dist = distance(self, bot.x, bot.y)
+
+                if dist < min_db:
+                    # Setting ARRIVAL TILE safety to 0
+                    safety_nb_saved = master.safety_map[bot.y, bot.x]
+                    master.safety_map[bot.y, bot.x] = 0
+
+                    safe_path = astar(master.safety_map, (self.y, self.x), (bot.y, bot.x))
+
+                    if safe_path != False:
+                        self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
+                        bx = bot.x
+                        by = bot.y
+                        min_db = dist
+                        hasFoundSafeBot = True
+                    else:
+                        continue
+
+                    # Putting value back
+                    master.safety_map[bot.y, bot.x] = safety_nb_saved
+
+            if hasFoundSafeBot:
+                self.DEST = [bx, by]
+                return True
+            else:
+                return False
 
 
     # Methods related to BOTS
@@ -372,7 +340,8 @@ class Hero(Entity):
     
         for k, bot in master_grid.bots.items():
             # Is there a bot next to HERO?
-            if (math.fabs(self.x - bot.x) <= self.bomb_reach and self.y == bot.y) or (math.fabs(self.y - bot.y) <= self.bomb_reach and hero.x == bot.x):
+            if (math.fabs(self.x - bot.x) <= 1 and self.y == bot.y) or (math.fabs(self.y - bot.y) <= 1 and hero.x == bot.x):
+            #if (math.fabs(self.x - bot.x) <= self.bomb_reach and self.y == bot.y) or (math.fabs(self.y - bot.y) <= self.bomb_reach and hero.x == bot.x):
                 isHeroNextBOT = True
                 break
         return isHeroNextBOT
@@ -387,18 +356,15 @@ class Hero(Entity):
         height, width = safety_map.shape
         mdist = height+width
         hasFoundSafeTile = False
-        hx = self.next_move[1] if isbomb else self.x
-        hy = self.next_move[0] if isbomb else self.y
-
-        #XXX
-        if isbomb:
-            print("with bomb", file=sys.stderr)
+        hx = self.x
+        hy = self.y
 
         for i in range(height):
             for j in range(width):
                 # distance of Tile(i,j) from Hero
-                dist,dx, dy = distance(self, j, i)
-                if safety_map[i, j] < safety_map[hy, hx] and dist < mdist:
+                dist = distance(self, j, i)
+                if safety_map[i, j] == 0 and dist < mdist:
+                #if safety_map[i, j] < safety_map[hy, hx] and dist < mdist:
                     # Find a safe path to tile
                     if astar(safety_map, (hy, hx), (i,j)) != False:
                         posx = j
@@ -408,6 +374,8 @@ class Hero(Entity):
                     else:
                         # No safe path to Tile, find next safety Tile.
                         continue
+        if isbomb:
+            print(hasFoundSafeTile, file=sys.stderr)
         if hasFoundSafeTile:
             self.DEST = [posx, posy]
             return True
@@ -419,35 +387,21 @@ class Hero(Entity):
 
     
     def safe_to_bomb(self,master_grid):
-        # find next move to DEST
-        # Arriving TILEs:
-        north = (self.DEST[1]-1 if self.DEST[1]-1 > 0 else 0, self.DEST[0])
-        south = (self.DEST[1]+1 if self.DEST[1]+1 < master_grid.height else 0, master_grid.height)
-        east = (self.DEST[1],self.DEST[0]+1 if self.DEST[0]+1 < master_grid.width else master_grid.width)
-        west = (self.DEST[1],self.DEST[0]-1 if self.DEST[0]-1 > 0 else 0)
 
-        north_path = astar(master.safety_map, (self.y, self.x), north)
-        south_path = astar(master.safety_map, (self.y, self.x), south)
-        east_path =  astar(master.safety_map, (self.y, self.x), east)
-        west_path = astar(master.safety_map, (self.y, self.x), west)
+        # Setting ARRIVAL TILE safety to 0
+        safety_nb_saved = master.safety_map[self.DEST[1], self.DEST[0]]
+        master.safety_map[self.DEST[1], self.DEST[0]] = 0
 
-        #XXX
-        print("paths", north_path, south_path, east_path, west_path, sep=" ", file=sys.stderr)
-        
+        safe_path = astar(master.safety_map, (self.y, self.x), (self.DEST[1], self.DEST[0]))
 
-        if north_path != False and len(north_path) !=0 :
-            self.next_move = north_path[::-1][0]
-        if south_path != False and len(south_path) !=0 :
-            self.next_move = south_path[::-1][0]
-        if east_path != False and len(east_path) !=0 :
-            self.next_move = east_path[::-1][0]
-        if west_path != False and len(west_path) !=0 :
-            self.next_move = west_path[::-1][0]
+        master.safety_map[self.DEST[1], self.DEST[0]] = safety_nb_saved
+
+        if safe_path != False :
+            self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
+
 
         simulated_safety_map = master_grid.simulate_safety_grid(self.x, self.y, self.bomb_reach)
         
-        #XXX
-        print("simu:", simulated_safety_map, file=sys.stderr)
         if hero.move_to_safety(simulated_safety_map, isbomb=True):
             return True
         else:
@@ -511,7 +465,6 @@ while True:
     # position won't move)
     isWall = False
                 
-    isHeroOnABomb = False
 
     # Dictionaries saving each entity types
     all_bombs = {}
@@ -522,6 +475,8 @@ while True:
     nbots = 0
     # Entities
     entities = int(input())
+
+    ticking_bomb = 7
 
     for i in range(entities):
         entity_type, owner, x, y, param_1, param_2 = [int(j) for j in input().split()]
@@ -545,11 +500,10 @@ while True:
                 bots[nbots] = Entity(entity_type, owner, x, y, param_1, param_2)
                 nbots += 1
         elif entity_type == 1:
-            if owner == my_id:
-                all_bombs[nb_bombs] = Entity(entity_type, owner, x, y, param_1, param_2)
-                nb_bombs += 1
-            if hero.x == x and hero.y == y:
-                isHeroOnABomb = True
+            all_bombs[nb_bombs] = Entity(entity_type, owner, x, y, param_1, param_2)
+            if param_1 < ticking_bomb:
+                ticking_bomb = param_1 -1
+            nb_bombs += 1
             if owner == my_id:
                 hero.bomb_reach = param_2
         elif entity_type == 2:
@@ -598,8 +552,8 @@ while True:
                 yes -- find safest path to crate    --> MOVE Cx Cy
                 no  -- for each BOT on board <find safest and shorter path to BOT>  --> MOVE Bx By
     '''
-    
-    if master.safety_map[hero.y, hero.x] > 8:
+
+    if master.safety_map[hero.y, hero.x] != 0:# and ticking_bomb < 6:
         hero.move_to_safety(master.safety_map)
         print("MOVE", hero.DEST[0],hero.DEST[1], "DANGER!", sep=" ")
     else:
@@ -610,15 +564,19 @@ while True:
                 hero.find_new_destination(master)
             if  hero.param_1 != 0 and hero.safe_to_bomb(master):
                 print("BOMB", hero.DEST[0], hero.DEST[1])
+            elif master.safety_map[hero.next_move[0], hero.next_move[1]] <= master.safety_map[hero.y, hero.x] and ticking_bomb > 1:
+               print("MOVE", hero.DEST[0], hero.DEST[1])
             else:
-                print("MOVE", hero.DEST[0], hero.DEST[1])
+                print("staying put!",hero.x, hero.y, sep=" ", file=sys.stderr)
+                print("MOVE", hero.x, hero.y)
 
         else:
             if hero.has_reach_destination():
                 hero.find_new_destination(master)
 
-            print("MOVE", hero.DEST[0], hero.DEST[1])
-
-
-
+            if master.safety_map[hero.next_move[0], hero.next_move[1]] <= master.safety_map[hero.y, hero.x] and ticking_bomb > 1:
+               print("MOVE", hero.DEST[0], hero.DEST[1])
+            else:
+                print("staying put!",hero.x, hero.y, sep=" ", file=sys.stderr)
+                print("MOVE", hero.x, hero.y)
 
