@@ -242,7 +242,7 @@ class Hero(Entity):
 
                     safe_path = astar(master.safety_map, (self.y, self.x), (up.y, up.x))
 
-                    if safe_path != False:
+                    if safe_path != False and len(safe_path) != 0:
                         self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
                         ux = up.x
                         uy = up.y
@@ -266,7 +266,7 @@ class Hero(Entity):
 
                     safe_path = astar(master.safety_map, (self.y, self.x), (crate.y, crate.x))
 
-                    if safe_path != False:
+                    if safe_path != False and len(safe_path) != 0:
                         self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
                         cx = crate.x
                         cy = crate.y
@@ -315,7 +315,7 @@ class Hero(Entity):
 
                     safe_path = astar(master.safety_map, (self.y, self.x), (bot.y, bot.x))
 
-                    if safe_path != False:
+                    if safe_path != False and len(safe_path) != 0:
                         self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
                         bx = bot.x
                         by = bot.y
@@ -396,7 +396,7 @@ class Hero(Entity):
 
         master.safety_map[self.DEST[1], self.DEST[0]] = safety_nb_saved
 
-        if safe_path != False :
+        if safe_path != False  and len(safe_path) != 0:
             self.next_move = safe_path[::-1][1] if len(safe_path) != 1 else safe_path[::-1][0]
 
 
@@ -531,6 +531,7 @@ while True:
     master.init_safety_map()
 
     ## DEBUG Algo working
+    #XXX
     #print(master.safety_map, file=sys.stderr)
 
     '''
@@ -579,4 +580,5 @@ while True:
             else:
                 print("staying put!",hero.x, hero.y, sep=" ", file=sys.stderr)
                 print("MOVE", hero.x, hero.y)
+
 
