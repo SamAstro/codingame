@@ -5,7 +5,7 @@ import random
 
 # Flags
 isFirstTurn = True
-isDEBUG = True
+isDEBUG = False
 
 # Reproducing randomness -- FOR DEBUG ONLY
 #random.seed(9001)
@@ -224,7 +224,7 @@ class MasterGrid():
        
         # Setting maximal range of explosion
         start = bx-bomb_reach if  bx-bomb_reach > 0 else 0
-        end =  bx+bomb_reach if  bx+bomb_reach < width else width
+        end =  bx+bomb_reach+1 if  bx+bomb_reach+1 < width else width
 
         mldist = 13
         mldx = 13
@@ -333,6 +333,7 @@ class Hero(Entity):
     DEST = [0,0]
     next_move = [0,0]
     ticking_bomb = 7
+    max_bomb = 1
 
 
     def __init__(self, entity_type=0, owner=0, x=0, y=0, param_1=0, param_2=0):
@@ -360,6 +361,19 @@ class Hero(Entity):
             return True
 
     # Methods related to CRATEs or UPs
+    def at_intersection(self, master_grid, intersection_row, intersection_column):
+        isHeroAtInter = False
+    
+        for k, crate in master_grid.crates.items():
+            # Is there a crate next to HERO?
+            dist = distance(self, crate.x, crate.y)
+            #XXX
+            print("distance:", dist, self.bomb_reach, sep=" ", file=sys.stderr)
+            if (crate.x in intersection_row or crate.y in intersection_column) and (self.x in intersection_row and self.y in intersection_column) and dist < self.bomb_reach:
+                isHeroAtInter = True
+                break
+        return isHeroAtInter
+
     def next_to_a_crate(self, master_grid):
         isHeroNextCrate = False
     
@@ -370,6 +384,22 @@ class Hero(Entity):
                 isHeroNextCrate = True
                 break
         return isHeroNextCrate
+
+    def next_to_a_up(self, master_grid):
+        isHeroNextUP = False
+        ux, uy = None, None
+    
+        for k, up in master_grid.ups.items():
+            dist = distance(self, up.x, up.y)
+
+            # Is there a crate next to HERO?
+            if dist <=4:
+            #if (math.fabs(self.x - crate.x) <= self.bomb_reach and self.y == crate.y) or (math.fabs(self.y - crate.y) <= self.bomb_reach and hero.x == crate.x):
+                isHeroNextUP = True
+                ux = up.x
+                uy = up.y
+                break
+        return isHeroNextUP, ux, uy
 
     def safe_path_to_ups_or_crates(self,master_grid):
         ux, uy = None, None
@@ -602,6 +632,9 @@ voisins = [(0,1),(0,-1),(1,0),(-1,0)]
 
 # Creating hero entity
 hero = Hero(entity_type=0, owner=my_id)
+hero.max_bomb = 1
+intersection_row = np.array([j for j in range(0, width, 2)])
+intersection_column = np.array([i for i in range(0, height, 2)])
 
 # game loop
 while True:
@@ -658,6 +691,8 @@ while True:
                     hero.y = y
                 hero.param_1 = param_1
                 hero.param_2 = param_2
+                if param_1 > hero.max_bomb:
+                    hero.max_bomb = param_1
             else:
                 bots[nbots] = Entity(entity_type, owner, x, y, param_1, param_2)
                 nbots += 1
@@ -717,13 +752,86 @@ while True:
                 no  -- for each BOT on board <find safest and shorter path to BOT>  --> MOVE Bx By
     '''
 
-    if master.safety_map[hero.y, hero.x] != 0:# and ticking_bomb < 6:
+    if len(master.crates) == 0:
+        for i,j in voisins:
+                voisin.append((hero.DEST[0]+i, hero.DEST[1] + j))
+
+        print("DESTINATION",hero.x, hero.y, hero.DEST, sep=" ", file=sys.stderr)
+
+        if hero.param_1 == hero.max_bomb:
+            print("1ere bombe", file=sys.stderr)
+            hero.DEST[0] = master.bots[0].x - 1 if master.bots[0].x > 0 else master.bots[0].x + 1
+            hero.DEST[1] = master.bots[0].y - 2 if master.bots[0].y > 2 else master.bots[0].y +2
+
+            if hero.has_reach_destination():
+                hero.DEST[0] = master.bots[0].x + 1 if master.bots[0].x > 0 else master.bots[0].x - 1
+                hero.DEST[1] = master.bots[0].y - 2 if master.bots[0].y > 2 else master.bots[0].y +2
+
+                print("BOMB", hero.DEST[0], hero.DEST[1], sep=" ")
+            else:
+                print("MOVE", hero.DEST[0], hero.DEST[1], sep=" ")
+
+        elif hero.param_1 == hero.max_bomb-1:
+            print("2eme bombe", file=sys.stderr)
+            if hero.has_reach_destination():
+                hero.DEST[0] = master.bots[0].x + 1 if master.bots[0].x < width else master.bots[0].x - 1
+                hero.DEST[1] = master.bots[0].y
+                print("BOMB", hero.DEST[0], hero.DEST[1], sep=" ")
+            else:
+                print("MOVE", hero.DEST[0], hero.DEST[1], sep=" ")
+        elif hero.param_1 == hero.max_bomb-2:
+            print("3eme bombe", file=sys.stderr)
+            if hero.has_reach_destination():
+                hero.DEST[0] = master.bots[0].x
+                hero.DEST[1] = master.bots[0].y +2 if master.bots[0].y < height-2 else height-1
+                print("BOMB", hero.DEST[0], hero.DEST[1], sep=" ")
+            else:
+                print("MOVE", hero.DEST[0], hero.DEST[1], sep=" ")
+        else:
+            print("4ere bombe", file=sys.stderr)
+            if hero.has_reach_destination():
+                print("MOVE", hero.x, hero.y, sep=" ")
+            else:
+                print("MOVE", hero.DEST[0], hero.DEST[1], sep=" ")
+
+    elif master.safety_map[hero.y, hero.x] == 0 and hero.ticking_bomb < 2:
+        print("MOVE", hero.x,hero.y, "STAY PUT!", sep=" ")
+    elif master.safety_map[hero.y, hero.x] != 0:# and ticking_bomb < 6:
         hero.move_to_safety(master.safety_map)
         print("MOVE", hero.DEST[0],hero.DEST[1], "DANGER!", sep=" ")
     else:
         isHeroNearBot = hero.next_to_a_bot(master)
         isHeroNearCrate = hero.next_to_a_crate(master)
-        if isHeroNearBot or isHeroNearCrate:
+        isHeroNearUp, ux, uy = hero.next_to_a_up(master)
+        isHeroAtInter = hero.at_intersection(master, intersection_row, intersection_column)
+ 
+        if len(master.crates) <= 5:
+            # Mode kamikaze
+
+            startx = master.bots[0].x - 3 if master.bots[0].x - 3 > 0 else 0
+            endx = master.bots[0].x + 3 if master.bots[0].x + 3 < width-1 else width-1
+
+            starty = master.bots[0].y - 3 if master.bots[0].y - 3 > 0 else 0
+            endy = master.bots[0].y + 3 if master.bots[0].y + 3 < height-1 else height-1
+
+
+            hx = random.randint(startx,endx)
+            hy = random.randint(starty, endy)
+
+            while master.safety_map[hy, hx] != 0:
+                hx = random.randint(startx,endx)
+                hy = random.randint(starty, endy)
+
+            if hero.x in intersection_row and hero.y in intersection_column:
+                print("MOVE", hx, hy)
+                #print("BOMB", hx, hy)
+            else:
+                print("MOVE", hx, hy)
+
+        elif isHeroNearUp:
+            print("MOVE", ux, uy, sep=" ")
+
+        elif isHeroNearBot or isHeroNearCrate or isHeroAtInter:
             for i,j in voisins:
                 voisin.append((hero.DEST[0]+i, hero.DEST[1] + j))
 
@@ -754,9 +862,6 @@ while True:
             else:
                 print("staying put!",hero.x, hero.y, sep=" ", file=sys.stderr)
                 print("MOVE", hero.x, hero.y)
-
-
-
 
 
 
