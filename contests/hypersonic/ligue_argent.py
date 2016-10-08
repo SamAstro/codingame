@@ -367,8 +367,6 @@ class Hero(Entity):
         for k, crate in master_grid.crates.items():
             # Is there a crate next to HERO?
             dist = distance(self, crate.x, crate.y)
-            #XXX
-            print("distance:", dist, self.bomb_reach, sep=" ", file=sys.stderr)
             if (crate.x in intersection_row or crate.y in intersection_column) and (self.x in intersection_row and self.y in intersection_column) and dist < self.bomb_reach:
                 isHeroAtInter = True
                 break
@@ -756,7 +754,6 @@ while True:
         for i,j in voisins:
                 voisin.append((hero.DEST[0]+i, hero.DEST[1] + j))
 
-        print("DESTINATION",hero.x, hero.y, hero.DEST, sep=" ", file=sys.stderr)
 
         if hero.param_1 == hero.max_bomb:
             print("1ere bombe", file=sys.stderr)
@@ -862,6 +859,4 @@ while True:
             else:
                 print("staying put!",hero.x, hero.y, sep=" ", file=sys.stderr)
                 print("MOVE", hero.x, hero.y)
-
-
 
