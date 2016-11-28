@@ -130,9 +130,11 @@ class Game_Status():
         if self.my_team_id == 1:
             self.goal_pos = [0,3750]
             self.own_goal_pos = [16000,3750]
+            self.goal_dir = 'LEFT'
         else:
             self.goal_pos = [16000,3750]
             self.own_goal_pos = [0,3750]
+            self.goal_dir = 'RIGHT'
 
     def set_magic(self, spell_cost = 0, turn_magic_pt = 1, init=False):
         '''
@@ -239,9 +241,11 @@ while True:
         else:
             print("Wrong type of entity", file=sys.stderr)
 
-    
+    wiz_has_not_cast = True
+    used_snaffle = []
+    spell_cost = 0
     for wizid, wiz in game.wizard.items():
-        if game.magic_lvl > 20 :#and (wiz.prev_action == 'THROW' and wiz.snafid in game.snaffle.values()):
+        if game.magic_lvl > 20 and wiz_has_not_cast:#and (wiz.prev_action == 'THROW' and wiz.snafid in game.snaffle.values()):
             wiz.DEST = [-99, -99]
 
             # Find closest snaf to wiz and to goal
@@ -261,24 +265,36 @@ while True:
 
             # Protect first own goal
             if snaf_to_goal_dist <= 4000:
-                wiz.action = 'ACCIO'
+                wiz.action = 'PETRIFICUS'
                 wiz.snafid = game.snaffle[snaf_to_goal_id].entity_id
+                spell_cost = 10
             else:
-                # TODO Make flipendo only to snaffle between wiz and goal.
-                wiz.action = 'FLIPENDO'
+                diffx = wiz.x - game.snaffle[wiz.snaffle_id].x if game.goal_dir == 'LEFT' else game.snaffle[wiz.snaffle_id].x - wiz.x
+                print(wiz.x, game.snaffle[wiz.snaffle_id].x, diffx, sep=" ", file=sys.stderr)
+                if diffx >= 0:
+                    wiz.action = 'FLIPENDO'
+                    spell_cost = 20
+                else:
+                    wiz.action = 'PETRIFICUS'
+                    spell_cost = 10
                 wiz.snafid = game.snaffle[wiz.snaffle_id].entity_id
+            wiz_has_not_cast = False
+            used_snaffle.append(wiz.snafid)
         else:
 
             if wiz.state == 0:
                 wiz.action = "MOVE"
-
                 # Find closest snaffle to wizard
                 for snafid, snaf in game.snaffle.items():
-                    dist = distance(wiz, snaf)
-                    if dist < wiz.to_snaf:
-                        wiz.to_snaf = dist
-                        wiz.snaffle_id = snafid
+                    if game.snaffle[snafid].entity_id in used_snaffle:
+                        continue
+                    else:
+                        dist = distance(wiz, snaf)
+                        if dist < wiz.to_snaf:
+                            wiz.to_snaf = dist
+                            wiz.snaffle_id = snafid
                 
+                used_snaffle.append(game.snaffle[wiz.snaffle_id].entity_id)
                 wiz.DEST = [game.snaffle[wiz.snaffle_id].x, game.snaffle[wiz.snaffle_id].y]
                 wiz.power = '150'
             else:
@@ -288,7 +304,7 @@ while True:
 
         if wiz.DEST[0] == -99 or wiz.DEST[1] == -99:
             print(wiz.action, wiz.snafid, sep=" ")
-            game.set_magic(spell_cost = 20)
+            game.set_magic(spell_cost = spell_cost)
         else:
             print(wiz.action, wiz.DEST[0], wiz.DEST[1], wiz.power, sep=" ")
 
