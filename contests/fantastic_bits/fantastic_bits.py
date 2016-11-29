@@ -136,12 +136,12 @@ class Game_Status():
             self.own_goal_pos = [0,3750]
             self.goal_dir = 'RIGHT'
 
-    def set_magic(self, spell_cost = 0, turn_magic_pt = 1, init=False):
+    def set_magic(self, spell_cost = 0, turn_magic_pt = 0, init=False):
         '''
         Track magic level
         '''
         if init:
-            self.magic_lvl = 1
+            self.magic_lvl = 0
         else:
             self.magic_lvl += turn_magic_pt - spell_cost
 
@@ -205,6 +205,9 @@ game.set_magic(init=True)
 # game loop
 while True:
     game.reset()
+
+    print(game.magic_lvl, file=sys.stderr)
+    game.set_magic(turn_magic_pt=1)
 
     # Entities
     entities = int(input())  # number of entities still in game
@@ -308,5 +311,3 @@ while True:
         else:
             print(wiz.action, wiz.DEST[0], wiz.DEST[1], wiz.power, sep=" ")
 
-    print(game.magic_lvl, file=sys.stderr)
-    game.set_magic()
