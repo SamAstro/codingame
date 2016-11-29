@@ -267,14 +267,18 @@ while True:
                     snaf_to_goal_id = snafid
 
             # Protect first own goal
-            if snaf_to_goal_dist <= 4000:
+            diffvx = game.snaffle[snaf_to_goal_id].vx if game.goal_dir == 'RIGHT' else -game.snaffle[snaf_to_goal_id].vx
+            diffvy = game.snaffle[snaf_to_goal_id].vy if game.goal_dir == 'RIGHT' else -game.snaffle[snaf_to_goal_id].vy
+
+            if snaf_to_goal_dist <= 4000 and (diffvx < 0 and diffvy < 0):
                 wiz.action = 'PETRIFICUS'
                 wiz.snafid = game.snaffle[snaf_to_goal_id].entity_id
                 spell_cost = 10
             else:
                 diffx = wiz.x - game.snaffle[wiz.snaffle_id].x if game.goal_dir == 'LEFT' else game.snaffle[wiz.snaffle_id].x - wiz.x
-                print(wiz.x, game.snaffle[wiz.snaffle_id].x, diffx, sep=" ", file=sys.stderr)
-                if diffx >= 0:
+                diffy = math.fabs(wiz.y - game.snaffle[wiz.snaffle_id].y)
+                print(diffx, diffy, sep=" ", file=sys.stderr)
+                if diffx >= 1000 and diffy < 1000:
                     wiz.action = 'FLIPENDO'
                     spell_cost = 20
                 else:
