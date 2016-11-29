@@ -39,61 +39,6 @@ def distance_goal(goal, snaf):
     return dist
 
 
-def heuristic(a, b):
-    return math.fabs(a[0] - b[0]) + math.fabs(a[1] - b[1])
-    #return (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2
-
-def astar(array, start, goal):
-
-    neighbors = [(0,1),(0,-1),(1,0),(-1,0)]
-    #neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
-
-    close_set = set()
-    came_from = {}
-    gscore = {start:0}
-    fscore = {start:heuristic(start, goal)}
-    oheap = []
-
-    heappush(oheap, (fscore[start], start))
-    
-    while oheap:
-
-        current = heappop(oheap)[1]
-
-        if current == goal:
-            data = []
-            while current in came_from:
-                data.append(current)
-                current = came_from[current]
-            return data
-
-        close_set.add(current)
-        for i, j in neighbors:
-            neighbor = current[0] + i, current[1] + j            
-            tentative_g_score = gscore[current] + heuristic(current, neighbor)
-            if 0 <= neighbor[0] < array.shape[0]:
-                if 0 <= neighbor[1] < array.shape[1]:                
-                    # this is where you define what is wall
-                    if array[neighbor[0]][neighbor[1]] == -1 or array[neighbor[0]][neighbor[1]] == 9:
-                        continue
-                else:
-                    # array bound y walls
-                    continue
-            else:
-                # array bound x walls
-                continue
-                
-            if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
-                continue
-                
-            if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
-                came_from[neighbor] = current
-                gscore[neighbor] = tentative_g_score
-                fscore[neighbor] = tentative_g_score + heuristic(neighbor, goal)
-                heappush(oheap, (fscore[neighbor], neighbor))
-                
-    return False
-
 
 """
 Classes
@@ -278,7 +223,7 @@ while True:
                         spell_cost = 20
                     wiz.snafid = game.snaffle[wiz.snaffle_id].entity_id
                     wiz_has_not_cast = False
-                    used_snaffle.append(wiz.snaffle_id)
+                    used_snaffle.append(wiz.snafid)
                 else:
                     if wiz.state == 0:
                         wiz.action = "MOVE"
@@ -338,12 +283,12 @@ while True:
                             wiz.snafid = game.snaffle[snaf_to_goal_id].entity_id
                             spell_cost = 20
                             wiz_has_not_cast = False
-                            used_snaffle.append(snaf_to_goal_id)
+                            used_snaffle.append(wiz.snafid)
                         else:
                             wiz.action = 'MOVE'
                             wiz.DEST = [game.snaffle[snaf_to_goal_id].x, game.snaffle[snaf_to_goal_id].y]
                             wiz.power = 150
-                            used_snaffle.append(snaf_to_goal_id)
+                            used_snaffle.append(game.snaffle[snaf_to_goal_id].entity_id)
         else:
             # Field player
             if game.magic_lvl > 20 and wiz_has_not_cast:
