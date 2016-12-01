@@ -1,6 +1,6 @@
 #!/opt/local/bin/python
 """
-DESCRIPTION OF THE SCRIPT
+SOLUTION TO THE 'DONT PANIC EP1' PUZZLE
 
 Version:
 Created:
